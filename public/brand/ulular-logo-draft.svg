@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 225 225" role="img" aria-label="Ulular Sala de Ensayo">
+  <rect width="225" height="225" fill="#0A0A0A"/>
+  <g transform="translate(56.5 26) scale(0.94)" fill="none" stroke="#FFFFFF" stroke-width="1.3">
+    <circle cx="60" cy="60.00" r="56.00" />
+    <circle cx="60" cy="64.64" r="51.36" />
+    <circle cx="60" cy="69.27" r="46.73" />
+    <circle cx="60" cy="73.91" r="42.09" />
+    <circle cx="60" cy="78.55" r="37.45" />
+    <circle cx="60" cy="83.18" r="32.82" />
+    <circle cx="60" cy="87.82" r="28.18" />
+    <circle cx="60" cy="92.45" r="23.55" />
+    <circle cx="60" cy="97.09" r="18.91" />
+    <circle cx="60" cy="101.73" r="14.27" />
+    <circle cx="60" cy="106.36" r="9.64" />
+    <circle cx="60" cy="111.00" r="5.00" />
+  </g>
+  <text x="112.5" y="173" text-anchor="middle" fill="#FFFFFF" font-family="Montserrat, Nunito, Arial Rounded MT Bold, sans-serif" font-weight="800" font-size="40" letter-spacing="-1">ulular</text>
+  <text x="112.5" y="188" text-anchor="middle" fill="#FFFFFF" font-family="Cinzel, Cormorant SC, Trajan Pro, serif" font-size="10" letter-spacing="1.2">SALA DE ENSAYO</text>
+</svg>

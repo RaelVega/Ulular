@@ -1,0 +1,10 @@
+{
+  "name": "Ulular Sala de Ensayo · Panel & Reservas",
+  "short_name": "Ulular",
+  "description": "Sistema de reservas y consola operativa de Ulular Sala de Ensayo (Querétaro, MX).",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "lang": "es-MX"
+}
