@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   BACKLINE_CATEGORIES,
-  BACKLINE_GENERAL_TAGS,
   BACKLINE_ITEMS,
   type BacklineCategory,
   type BacklineItem,
@@ -11,8 +10,8 @@ import {
 import { WHATSAPP_NUMBER } from "@/lib/constants";
 
 export function BacklineCatalog() {
-  const [activeCategory, setActiveCategory] = useState<BacklineCategory>("todos");
-  const [photoMode, setPhotoMode] = useState<"clean" | "framed">("clean");
+  const [activeCategory, setActiveCategory] =
+    useState<BacklineCategory>("todos");
   const [selectedItem, setSelectedItem] = useState<BacklineItem | null>(null);
 
   const filteredItems =
@@ -22,8 +21,8 @@ export function BacklineCatalog() {
 
   return (
     <div id="backline" className="mt-16 border-t border-tolex pt-12">
-      {/* Encabezado del catálogo + Selector Sin Marco / Con Marco */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      {/* Encabezado limpio del catálogo (sin selector de marcos ni nube cargada de etiquetas) */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="inline-flex items-center gap-2">
             <span
@@ -32,70 +31,34 @@ export function BacklineCatalog() {
               className="h-2 w-2 rounded-full bg-accent"
             />
             <p className="font-label-caps text-ash">
-              Catálogo oficial Backline Ulular · 21 equipos
+              Catálogo oficial Backline Ulular · 21 equipos disponibles
             </p>
           </div>
           <h3 className="font-display-title text-[clamp(2rem,5vw,3.5rem)] mt-2 text-bone">
             catálogo de <span className="text-accent">backline.</span>
           </h3>
-          <p className="mt-2 max-w-[64ch] text-sm text-ash">
-            Sonorizamos por completo eventos en vivo. Puedes rentar equipo
-            individual, paquetes de backline o producción técnica completa en
-            Querétaro.
+          <p className="mt-2 max-w-[68ch] text-sm text-ash">
+            Sonorizamos por completo eventos en vivo en Querétaro: renta de
+            baterías, amplificadores, cabezales, gabinetes, consolas digitales,
+            microfonía, cajas directas, monitoreo inalámbrico e instrumentos.
           </p>
         </div>
 
-        {/* Selector interactivo para comparar versión Sin Marco vs Con Marco */}
-        <div className="flex flex-col gap-1.5 self-start lg:self-auto shrink-0">
-          <span className="font-mono-specs text-[10px] tracking-[0.16em] uppercase text-ash">
-            Vista de fotografías (comparador para elegir)
-          </span>
-          <div
-            role="group"
-            aria-label="Modo de visualización de fotos de backline"
-            className="inline-flex border border-tolex bg-ink-2 p-1"
-          >
-            <button
-              type="button"
-              onClick={() => setPhotoMode("clean")}
-              className={`px-3.5 py-2 font-mono-specs text-xs tracking-[0.12em] uppercase cursor-pointer transition-colors ${
-                photoMode === "clean"
-                  ? "bg-accent text-white font-semibold"
-                  : "text-ash hover:text-bone"
-              }`}
-            >
-              Sin marco (original)
-            </button>
-            <button
-              type="button"
-              onClick={() => setPhotoMode("framed")}
-              className={`px-3.5 py-2 font-mono-specs text-xs tracking-[0.12em] uppercase cursor-pointer transition-colors ${
-                photoMode === "framed"
-                  ? "bg-accent text-white font-semibold"
-                  : "text-ash hover:text-bone"
-              }`}
-            >
-              Con marco
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Etiquetas de alcance general del catálogo */}
-      <div className="mt-6 flex flex-wrap gap-1.5 border-y border-tolex py-4">
-        {BACKLINE_GENERAL_TAGS.map((tag) => (
-          <span
-            key={tag}
-            className="border border-tolex bg-ink-2 px-2.5 py-1 font-mono-specs text-[11px] tracking-[0.06em] text-ash"
-          >
-            {tag}
-          </span>
-        ))}
+        <a
+          href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+            "Hola Ulular, me interesa cotizar un paquete de backline o sonorización completa para un evento.",
+          )}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 border border-accent bg-accent-soft px-4 py-3 font-mono-specs text-xs uppercase tracking-[0.12em] text-bone hover:bg-accent hover:text-white transition-colors self-start lg:self-auto shrink-0"
+        >
+          <span>Cotizar paquete o evento completo ↗</span>
+        </a>
       </div>
 
       {/* Filtros por categoría */}
       <div
-        className="mt-6 flex flex-wrap gap-1.5"
+        className="mt-7 flex flex-wrap gap-1.5"
         role="tablist"
         aria-label="Categorías de backline"
       >
@@ -110,7 +73,7 @@ export function BacklineCatalog() {
               onClick={() => setActiveCategory(cat.id)}
               className={`px-3.5 py-2 font-mono-specs text-xs tracking-[0.1em] uppercase cursor-pointer transition-colors border ${
                 active
-                  ? "border-accent bg-accent-soft text-bone font-semibold"
+                  ? "border-accent bg-accent text-white font-semibold"
                   : "border-tolex bg-ink-2/50 text-ash hover:border-smoke hover:text-bone"
               }`}
             >
@@ -120,11 +83,9 @@ export function BacklineCatalog() {
         })}
       </div>
 
-      {/* Matriz arquitectónica con líneas divisorias (sin tarjetas genéricas) */}
+      {/* Matriz arquitectónica con fotografías originales sin marco */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t border-l border-tolex">
         {filteredItems.map((item) => {
-          const imgSrc =
-            photoMode === "clean" ? item.cleanImage : item.framedImage;
           const waText = encodeURIComponent(
             `Hola Ulular, me interesa cotizar en renta de backline: ${item.name} (${item.subtitle}).`,
           );
@@ -135,13 +96,9 @@ export function BacklineCatalog() {
               className="group flex flex-col justify-between border-r border-b border-tolex bg-ink-2/30 p-5 sm:p-6 transition-colors hover:bg-ink-2"
             >
               <div>
-                {/* Cabecera técnica del ítem */}
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono-specs text-[11px] tracking-[0.14em] uppercase text-accent">
                     {item.categoryLabel}
-                  </span>
-                  <span className="font-mono-specs text-[10px] text-smoke uppercase">
-                    {photoMode === "clean" ? "Sin marco" : "Con marco"}
                   </span>
                 </div>
 
@@ -152,7 +109,7 @@ export function BacklineCatalog() {
                   {item.subtitle}
                 </p>
 
-                {/* Fotografía del equipo */}
+                {/* Fotografía original sin marco */}
                 <button
                   type="button"
                   onClick={() => setSelectedItem(item)}
@@ -161,19 +118,17 @@ export function BacklineCatalog() {
                 >
                   <div
                     className={`relative w-full overflow-hidden ${
-                      photoMode === "framed"
-                        ? "aspect-[4/4.2] bg-ink p-2"
-                        : item.aspect === "tall"
+                      item.aspect === "tall"
                         ? "aspect-[4/4.5]"
                         : "aspect-[4/3.2]"
                     }`}
                   >
                     <img
-                      src={imgSrc}
+                      src={item.cleanImage}
                       alt={item.name}
                       loading="lazy"
                       className={`h-full w-full transition-transform duration-500 group-hover:scale-[1.03] ${
-                        photoMode === "framed" || item.aspect === "tall"
+                        item.aspect === "tall"
                           ? "object-contain bg-black/40"
                           : "object-cover"
                       }`}
@@ -184,7 +139,7 @@ export function BacklineCatalog() {
                   </span>
                 </button>
 
-                {/* Lista de especificaciones técnicas */}
+                {/* Especificaciones técnicas */}
                 <ul className="mt-4 space-y-1.5 border-t border-tolex pt-3.5 text-xs text-ash">
                   {item.specs.map((spec) => (
                     <li key={spec} className="flex items-start gap-2">
@@ -204,7 +159,6 @@ export function BacklineCatalog() {
                 ) : null}
               </div>
 
-              {/* Acción directa por equipo */}
               <div className="mt-5 pt-3 border-t border-tolex flex items-center justify-between gap-3">
                 <a
                   href={`https://wa.me/${WHATSAPP_NUMBER}?text=${waText}`}
@@ -221,7 +175,7 @@ export function BacklineCatalog() {
         })}
       </div>
 
-      {/* Modal de vista ampliada para comparar sin marco / con marco */}
+      {/* Modal de vista ampliada */}
       {selectedItem ? (
         <div
           role="dialog"
@@ -243,36 +197,19 @@ export function BacklineCatalog() {
                   {selectedItem.name.toLowerCase()}
                 </h4>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPhotoMode((prev) =>
-                      prev === "clean" ? "framed" : "clean",
-                    )
-                  }
-                  className="border border-accent px-3 py-1.5 font-mono-specs text-xs uppercase tracking-[0.12em] text-accent hover:bg-accent hover:text-white cursor-pointer transition-colors"
-                >
-                  Ver {photoMode === "clean" ? "Con marco" : "Sin marco"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedItem(null)}
-                  className="border border-tolex bg-ink px-3 py-1.5 font-mono-specs text-xs uppercase tracking-[0.12em] text-bone hover:border-accent cursor-pointer"
-                >
-                  Cerrar ✕
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedItem(null)}
+                className="border border-tolex bg-ink px-3 py-1.5 font-mono-specs text-xs uppercase tracking-[0.12em] text-bone hover:border-accent cursor-pointer"
+              >
+                Cerrar ✕
+              </button>
             </div>
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
               <div className="md:col-span-7 bg-black/70 border border-tolex p-2 flex items-center justify-center">
                 <img
-                  src={
-                    photoMode === "clean"
-                      ? selectedItem.cleanImage
-                      : selectedItem.framedImage
-                  }
+                  src={selectedItem.cleanImage}
                   alt={selectedItem.name}
                   className="max-h-[62vh] w-auto object-contain"
                 />

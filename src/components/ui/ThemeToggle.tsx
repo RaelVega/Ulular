@@ -33,26 +33,37 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const savedTheme = window.localStorage.getItem(
-      storageKey,
-    ) as ThemeMode | null;
-    const nextTheme: ThemeMode =
-      savedTheme === "light" || savedTheme === "dark"
-        ? savedTheme
-        : defaultTheme;
 
-    const savedAccent = window.localStorage.getItem(
-      "ulular_accent_v1",
-    ) as AccentTone | null;
-    const nextAccent: AccentTone =
-      savedAccent && ACCENT_OPTIONS.some((a) => a.id === savedAccent)
-        ? savedAccent
-        : "blue";
+    const syncFromStorage = () => {
+      const savedTheme = window.localStorage.getItem(
+        storageKey,
+      ) as ThemeMode | null;
+      const nextTheme: ThemeMode =
+        savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : defaultTheme;
 
-    setTheme(nextTheme);
-    setAccent(nextAccent);
-    document.documentElement.setAttribute("data-theme", nextTheme);
-    document.documentElement.setAttribute("data-accent", nextAccent);
+      const savedAccent = window.localStorage.getItem(
+        "ulular_accent_v1",
+      ) as AccentTone | null;
+      const nextAccent: AccentTone =
+        savedAccent && ACCENT_OPTIONS.some((a) => a.id === savedAccent)
+          ? savedAccent
+          : "blue";
+
+      setTheme(nextTheme);
+      setAccent(nextAccent);
+      document.documentElement.setAttribute("data-theme", nextTheme);
+      document.documentElement.setAttribute("data-accent", nextAccent);
+    };
+
+    syncFromStorage();
+    window.addEventListener("ulular-theme-updated", syncFromStorage);
+    window.addEventListener("storage", syncFromStorage);
+    return () => {
+      window.removeEventListener("ulular-theme-updated", syncFromStorage);
+      window.removeEventListener("storage", syncFromStorage);
+    };
   }, [storageKey, defaultTheme]);
 
   const toggleTheme = () => {
@@ -61,6 +72,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     document.documentElement.setAttribute("data-theme", next);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(storageKey, next);
+      window.dispatchEvent(new Event("ulular-theme-updated"));
     }
   };
 
@@ -69,6 +81,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     document.documentElement.setAttribute("data-accent", nextAccent);
     if (typeof window !== "undefined") {
       window.localStorage.setItem("ulular_accent_v1", nextAccent);
+      window.dispatchEvent(new Event("ulular-theme-updated"));
     }
     setPaletteOpen(false);
   };

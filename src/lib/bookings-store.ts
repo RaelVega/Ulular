@@ -24,6 +24,7 @@ const BOOKINGS_STORAGE_KEY = "ulular_bookings_v1";
 const BLACKOUTS_STORAGE_KEY = "ulular_blackouts_v1";
 const SETTINGS_STORAGE_KEY = "ulular_settings_v1";
 const STAFF_STORAGE_KEY = "ulular_staff_v1";
+const ADMIN_SESSION_STORAGE_KEY = "ulular_admin_session_v1";
 
 export interface OperationalSettings {
   pricePerHour: number;
@@ -32,6 +33,7 @@ export interface OperationalSettings {
   cancelNoticeHours: number;
   whatsappNumber: string;
   googleCalendarId: string;
+  adminAccessPin: string;
 }
 
 export const DEFAULT_OPERATIONAL_SETTINGS: OperationalSettings = {
@@ -41,6 +43,7 @@ export const DEFAULT_OPERATIONAL_SETTINGS: OperationalSettings = {
   cancelNoticeHours: DEFAULT_CANCEL_NOTICE_HOURS,
   whatsappNumber: WHATSAPP_NUMBER,
   googleCalendarId: "ulular.sala@gmail.com",
+  adminAccessPin: "ulular2026",
 };
 
 export interface StaffMember {
@@ -443,3 +446,81 @@ export function saveStoredStaffList(list: StaffMember[]): void {
   window.localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(list));
   window.dispatchEvent(new Event("ulular-staff-updated"));
 }
+
+export interface AdminSession {
+  email: string;
+  name: string;
+  role: StaffRole;
+  loggedInAt: string;
+}
+
+export function loadAdminSession(): AdminSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AdminSession;
+    const staff = loadStoredStaffList();
+    const matched = staff.find(
+      (s) => s.email.toLowerCase() === parsed.email?.toLowerCase(),
+    );
+    if (!matched) return null;
+    return {
+      email: matched.email,
+      name: matched.name,
+      role: matched.role,
+      loggedInAt: parsed.loggedInAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function authenticateAdmin(
+  emailInput: string,
+  pinInput: string,
+): { ok: true; session: AdminSession } | { ok: false; error: string } {
+  const email = emailInput.trim().toLowerCase();
+  const pin = pinInput.trim();
+  const staff = loadStoredStaffList();
+  const settings = loadOperationalSettings();
+  const expectedPin = settings.adminAccessPin || "ulular2026";
+
+  const matched = staff.find((s) => s.email.toLowerCase() === email);
+  if (!matched) {
+    return {
+      ok: false,
+      error:
+        "Este correo no está en la lista blanca de personal autorizado (staff_users).",
+    };
+  }
+  if (pin !== expectedPin) {
+    return {
+      ok: false,
+      error: "Clave / PIN de cabina incorrecto.",
+    };
+  }
+
+  const session: AdminSession = {
+    email: matched.email,
+    name: matched.name,
+    role: matched.role,
+    loggedInAt: new Date().toISOString(),
+  };
+
+  if (typeof window !== "undefined") {
+    window.sessionStorage.setItem(
+      ADMIN_SESSION_STORAGE_KEY,
+      JSON.stringify(session),
+    );
+    window.dispatchEvent(new Event("ulular-auth-updated"));
+  }
+  return { ok: true, session };
+}
+
+export function logoutAdminSession(): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+  window.dispatchEvent(new Event("ulular-auth-updated"));
+}
+

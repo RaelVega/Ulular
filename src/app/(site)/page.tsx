@@ -11,6 +11,7 @@ import { EventsSection } from "@/components/site/EventsSection";
 import { SocialsSection } from "@/components/site/SocialsSection";
 import { BacklineCatalog } from "@/components/site/BacklineCatalog";
 import { LiveSessionsGallery } from "@/components/site/LiveSessionsGallery";
+import { Room360Viewer } from "@/components/site/Room360Viewer";
 import {
   ADDRESS,
   BOOKING_RULES,
@@ -386,36 +387,7 @@ export default function HomePage() {
           </div>
 
           {/* Recorrido Virtual Interactivo 360° de la Sala de Ensayo */}
-          <div className="mt-8 border border-tolex bg-ink-2 p-5 sm:p-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-tolex mb-5">
-              <div>
-                <div className="inline-flex items-center gap-2">
-                  <span className="h-2 w-2 bg-accent" aria-hidden="true" />
-                  <span className="font-mono-specs text-xs uppercase tracking-[0.16em] text-accent">
-                    Recorrido Virtual 360° Interactivo
-                  </span>
-                </div>
-                <h3 className="font-display-title text-2xl sm:text-3xl text-bone mt-1">
-                  explora la sala en <span className="text-accent">360°.</span>
-                </h3>
-              </div>
-              <p className="font-mono-specs text-xs text-ash max-w-sm">
-                Reproduce el video y arrastra con el cursor o gira tu celular
-                para recorrer cada rincón de Ulular Sala de Ensayo.
-              </p>
-            </div>
-
-            <div className="relative aspect-video w-full overflow-hidden border border-tolex bg-black">
-              <iframe
-                src="https://www.youtube.com/embed/4qX6-GEswH8?rel=0&modestbranding=1"
-                title="Recorrido virtual 360° de Ulular Sala de Ensayo"
-                loading="lazy"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="h-full w-full border-0"
-              />
-            </div>
-          </div>
+          <Room360Viewer />
 
           {/* Barra inferior de operación y reglas */}
           <div className="mt-8 border border-tolex bg-ink-2 p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">

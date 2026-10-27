@@ -54,10 +54,9 @@ function spawnSonarRipple(el: HTMLElement, clientX: number, clientY: number) {
 }
 
 /**
- * Botón monocromo de Ulular (DESIGN.md §7):
- * - primary: bloque bone con texto ink; en hover invierte a contorno; incluye LED circular opcional.
+ * Botón principal de Ulular:
+ * - primary: bloque en color de acento activo con halo luminoso, pulso LED en vivo y flecha reactiva.
  * - ghost: transparente con borde bone; en hover se invierte a bone con texto ink.
- * - Onda de toque A4 (sonar) al presionar.
  */
 export function Button(props: ButtonProps) {
   const {
@@ -71,30 +70,44 @@ export function Button(props: ButtonProps) {
   const ref = useRef<HTMLElement | null>(null);
 
   const baseClasses =
-    "group relative overflow-hidden inline-flex items-center justify-center gap-3 min-h-[52px] px-6 font-display font-extrabold text-[0.78rem] tracking-[0.14em] uppercase border border-bone transition-colors duration-200 cursor-pointer select-none active:scale-[0.98] ulular-btn-buzz";
+    "group relative overflow-hidden inline-flex items-center justify-center gap-3 min-h-[54px] px-7 font-display font-black text-[0.82rem] tracking-[0.15em] uppercase transition-all duration-200 cursor-pointer select-none active:scale-[0.98] ulular-btn-buzz";
 
   const variantClasses =
     variant === "primary"
-      ? "bg-bone text-ink hover:bg-accent hover:text-white hover:border-accent shadow-[0_0_24px_var(--theme-accent-soft)]"
-      : "bg-transparent text-bone hover:bg-bone hover:text-ink";
+      ? "bg-accent text-white border-2 border-accent shadow-[0_0_26px_var(--theme-accent-soft),0_0_12px_var(--color-accent)] hover:brightness-110 hover:shadow-[0_0_36px_var(--color-accent)]"
+      : "bg-transparent text-bone border border-bone hover:bg-bone hover:text-ink";
 
   const content = (
     <>
+      {variant === "primary" && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+        />
+      )}
       {withLed && (
-        <span className="relative inline-flex items-center justify-center w-3 h-3">
+        <span className="relative inline-flex items-center justify-center w-3.5 h-3.5 shrink-0">
           <span
             aria-hidden="true"
             style={{ borderRadius: "9999px" }}
-            className="absolute inset-0 rounded-full bg-accent animate-ping opacity-75"
+            className="absolute inset-0 rounded-full bg-white animate-ping opacity-80"
           />
           <span
             aria-hidden="true"
             style={{ borderRadius: "9999px" }}
-            className="relative w-2.5 h-2.5 rounded-full bg-accent border border-accent transition-transform duration-200 group-hover:bg-white group-hover:border-white group-hover:scale-125"
+            className="relative w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_8px_#fff] transition-transform duration-200 group-hover:scale-125"
           />
         </span>
       )}
       <span className="relative z-10">{children}</span>
+      {variant === "primary" && (
+        <span
+          aria-hidden="true"
+          className="relative z-10 font-mono-specs text-sm leading-none transition-transform duration-200 group-hover:translate-x-1"
+        >
+          →
+        </span>
+      )}
     </>
   );
 

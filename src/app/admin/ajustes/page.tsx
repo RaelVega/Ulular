@@ -221,6 +221,24 @@ export default function AdminAjustesPage() {
                 className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent"
               />
             </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="font-label-caps text-xs text-accent">
+                Clave / PIN de acceso a Cabina Admin
+              </span>
+              <input
+                type="text"
+                value={opSettings.adminAccessPin}
+                onChange={(e) =>
+                  setOpSettings({
+                    ...opSettings,
+                    adminAccessPin: e.target.value,
+                  })
+                }
+                placeholder="ulular2026"
+                className="min-h-[44px] px-3 bg-ink-2 border border-accent/60 text-bone font-mono-specs text-sm focus:border-accent"
+              />
+            </label>
           </div>
         </div>
 
