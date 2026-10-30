@@ -43,6 +43,22 @@ export const metadata: Metadata = {
   description:
     "Sala de ensayo en Querétaro ($150/h, mínimo 1 hora). Renta de backline, fotografía y sesiones en vivo. Aparta tu horario en línea.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      {
+        url: "/brand/favicon-dark-lines.png",
+        media: "(prefers-color-scheme: light)",
+        type: "image/png",
+      },
+      {
+        url: "/brand/favicon-light-lines.png",
+        media: "(prefers-color-scheme: dark)",
+        type: "image/png",
+      },
+    ],
+    shortcut: "/brand/favicon-dark-lines.png",
+    apple: "/brand/ulular-original.png",
+  },
 };
 
 export const viewport: Viewport = {

@@ -20,13 +20,15 @@ const NAV_LINKS = [
   { href: "/#eventos", label: "eventos" },
   { href: "/#pizzeria", label: "napule pizza" },
   { href: "/#redes", label: "canales" },
+  { href: "/#resenas", label: "reseñas" },
   { href: "/#ubicacion", label: "ubicación" },
 ] as const;
 
 export function Header() {
   const pathname = usePathname();
   const isHome = pathname === "/";
-  const [scrolledPastHero, setScrolledPastHero] = useState(!isHome);
+  const [scrolledPastWordmark, setScrolledPastWordmark] = useState(!isHome);
+  const [scrolledPastHeroCta, setScrolledPastHeroCta] = useState(!isHome);
   const [pingKey, setPingKey] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [socials, setSocials] = useState(() => loadStoredSocialLinks());
@@ -44,31 +46,51 @@ export function Header() {
 
   useEffect(() => {
     if (!isHome) {
-      setScrolledPastHero(true);
+      setScrolledPastWordmark(true);
+      setScrolledPastHeroCta(true);
       return;
     }
 
     const heroMarker = document.getElementById("hero-wordmark");
-    if (!heroMarker) {
-      setScrolledPastHero(true);
-      return;
+    const ctaMarker = document.getElementById("hero-cta-anchor");
+
+    const observers: IntersectionObserver[] = [];
+
+    if (heroMarker) {
+      const ioLogo = new IntersectionObserver(
+        ([entry]) => {
+          const isPast = !entry?.isIntersecting;
+          setScrolledPastWordmark((prev) => {
+            if (!prev && isPast) {
+              setPingKey((k) => k + 1);
+            }
+            return isPast;
+          });
+        },
+        { threshold: 0.12 },
+      );
+      ioLogo.observe(heroMarker);
+      observers.push(ioLogo);
+    } else {
+      setScrolledPastWordmark(true);
     }
 
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        const isPast = !entry?.isIntersecting;
-        setScrolledPastHero((prev) => {
-          if (!prev && isPast) {
-            setPingKey((k) => k + 1);
-          }
-          return isPast;
-        });
-      },
-      { threshold: 0.15 },
-    );
+    if (ctaMarker) {
+      const ioCta = new IntersectionObserver(
+        ([entry]) => {
+          setScrolledPastHeroCta(!entry?.isIntersecting);
+        },
+        { threshold: 0.1 },
+      );
+      ioCta.observe(ctaMarker);
+      observers.push(ioCta);
+    } else {
+      setScrolledPastHeroCta(true);
+    }
 
-    io.observe(heroMarker);
-    return () => io.disconnect();
+    return () => {
+      observers.forEach((o) => o.disconnect());
+    };
   }, [isHome]);
 
   useEffect(() => {
@@ -95,31 +117,53 @@ export function Header() {
     Boolean(item.url && item.url.trim().length > 0),
   );
 
+  const showHeaderLogo = scrolledPastWordmark || menuOpen;
+  const showDesktopHeaderCta = (scrolledPastHeroCta || menuOpen) && pathname !== "/reservar";
+
   return (
     <>
-      {/* Barra única de encabezado alineada para móvil (375px), iPad (768/1024px) y monitor */}
+      {/* Barra superior:
+          - Izquierda: Logo Ulular (aparece al pasar el logo principal del Hero)
+          - Derecha: Botón "Reserva tu ensayo" (en computadora lg+, aparece al pasar el botón del Hero) + Selector de tema/acento + Menú */}
       <header
         className={`fixed inset-x-0 top-0 z-45 bg-ink/95 backdrop-blur-sm transition-colors duration-300 border-b ${
-          scrolledPastHero || menuOpen ? "border-tolex" : "border-tolex/40"
+          showHeaderLogo || showDesktopHeaderCta
+            ? "border-tolex"
+            : "border-tolex/40"
         }`}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 sm:px-8 lg:px-12 pt-[calc(0.6rem+env(safe-area-inset-top))] pb-2.5">
+          {/* Izquierda: Logo */}
           <Link
             href="/"
             aria-label="Ulular Sala de Ensayo, ir al inicio"
-            className="shrink-0 transition-opacity duration-200 hover:opacity-90"
+            tabIndex={showHeaderLogo ? 0 : -1}
+            className={`inline-flex shrink-0 transition-all duration-300 ${
+              showHeaderLogo
+                ? "opacity-100 translate-y-0 pointer-events-auto hover:opacity-90"
+                : "opacity-0 -translate-y-1.5 pointer-events-none select-none"
+            }`}
           >
             <Logo key={pingKey} variant="horizontal" ping={pingKey > 0} />
           </Link>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <ThemeToggle compact />
-            <Button
-              href="/reservar"
-              className="hidden md:inline-flex !min-h-[40px] h-10 !py-0 px-4 text-[0.7rem] whitespace-nowrap shrink-0"
+          {/* Derecha: Botón Reserva tu ensayo (lg+, aparece al bajar del Hero) + Selector de color/tema + Botón de menú */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div
+              className={`hidden lg:flex items-center transition-all duration-300 ${
+                showDesktopHeaderCta
+                  ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
+                  : "opacity-0 -translate-y-1.5 scale-95 pointer-events-none select-none"
+              }`}
             >
-              Reserva tu ensayo
-            </Button>
+              <Button
+                href="/reservar"
+                className="!min-h-[40px] h-10 !py-0 px-4 text-[0.72rem] whitespace-nowrap"
+              >
+                Reserva tu ensayo
+              </Button>
+            </div>
+            <ThemeToggle compact />
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}

@@ -12,6 +12,7 @@ import { SocialsSection } from "@/components/site/SocialsSection";
 import { BacklineCatalog } from "@/components/site/BacklineCatalog";
 import { LiveSessionsGallery } from "@/components/site/LiveSessionsGallery";
 import { Room360Viewer } from "@/components/site/Room360Viewer";
+import { GoogleReviewsSection } from "@/components/site/GoogleReviewsSection";
 import {
   ADDRESS,
   BOOKING_RULES,
@@ -292,7 +293,10 @@ export default function HomePage() {
               ${DEFAULT_PRICE_PER_HOUR} / hora · mínimo 1 hora · 15 min de
               tolerancia
             </p>
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
+            <div
+              id="hero-cta-anchor"
+              className="flex flex-wrap items-center justify-center lg:justify-start gap-3"
+            >
               <Button href="/reservar">Reserva tu ensayo</Button>
             </div>
 
@@ -623,6 +627,9 @@ export default function HomePage() {
 
       {/* SECCIÓN CANALES OFICIALES (LOGO + RED / NOMBRE) */}
       <SocialsSection />
+
+      {/* SECCIÓN RESEÑAS VERIFICADAS DE GOOGLE MAPS (ORDENADAS DE MÁS ESTRELLAS A MENOS Y MÁS RECIENTES) */}
+      <GoogleReviewsSection />
 
       {/* SECCIÓN UBICACIÓN (C. PRIMAVERA 32B, CENTRO) + MAPA A COLOR */}
       <section

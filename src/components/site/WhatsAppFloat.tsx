@@ -5,8 +5,8 @@ import { WHATSAPP_DISPLAY } from "@/lib/constants";
 import { buildSpecialScheduleWhatsAppUrl } from "@/lib/whatsapp";
 
 /**
- * Botón flotante de WhatsApp para escritorio (lg+):
- * En móvil vive alineado junto a "Reserva tu ensayo" en MobileBar.
+ * Botón circular flotante de WhatsApp para escritorio (lg+):
+ * En computadora el botón "Reserva tu ensayo" vive simétricamente en el Header tras bajar del Hero.
  */
 export function WhatsAppFloat() {
   return (

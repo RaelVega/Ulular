@@ -19,6 +19,15 @@ import {
   loadStoredSocialLinks,
   saveStoredSocialLinks,
 } from "@/lib/events-store";
+import {
+  DEFAULT_GOOGLE_REVIEWS_CONFIG,
+  loadGoogleReviewsConfig,
+  loadStoredGoogleReviews,
+  saveGoogleReviewsConfig,
+  saveStoredGoogleReviews,
+  type GoogleReview,
+  type GoogleReviewsConfig,
+} from "@/lib/reviews-store";
 import type { StaffRole } from "@/lib/supabase/types";
 
 export default function AdminAjustesPage() {
@@ -30,6 +39,15 @@ export default function AdminAjustesPage() {
   const [newStaffEmail, setNewStaffEmail] = useState("");
   const [newStaffName, setNewStaffName] = useState("");
   const [newStaffRole, setNewStaffRole] = useState<StaffRole>("staff");
+  const [reviewsConfig, setReviewsConfig] = useState<GoogleReviewsConfig>(
+    DEFAULT_GOOGLE_REVIEWS_CONFIG,
+  );
+  const [reviewsList, setReviewsList] = useState<GoogleReview[]>([]);
+  const [newRevAuthor, setNewRevAuthor] = useState("");
+  const [newRevRating, setNewRevRating] = useState<1 | 2 | 3 | 4 | 5>(5);
+  const [newRevDate, setNewRevDate] = useState("2026-10-27");
+  const [newRevRelative, setNewRevRelative] = useState("Hace unos días");
+  const [newRevText, setNewRevText] = useState("");
   const [saved, setSaved] = useState(false);
   const [gcalStatus, setGcalStatus] = useState<{
     configured: boolean;
@@ -42,6 +60,8 @@ export default function AdminAjustesPage() {
     setLinks(loadStoredSocialLinks());
     setOpSettings(loadOperationalSettings());
     setStaffList(loadStoredStaffList());
+    setReviewsConfig(loadGoogleReviewsConfig());
+    setReviewsList(loadStoredGoogleReviews());
     fetch("/api/calendar/status")
       .then((r) => r.json())
       .then((d) => setGcalStatus(d))
@@ -52,6 +72,7 @@ export default function AdminAjustesPage() {
     e.preventDefault();
     saveStoredSocialLinks(links);
     saveOperationalSettings(opSettings);
+    saveGoogleReviewsConfig(reviewsConfig);
     setSaved(true);
     window.setTimeout(() => setSaved(false), 3000);
   };
@@ -81,6 +102,33 @@ export default function AdminAjustesPage() {
     const next = staffList.filter((s) => s.id !== id);
     setStaffList(next);
     saveStoredStaffList(next);
+  };
+
+  const handleAddReview = (e: FormEvent) => {
+    e.preventDefault();
+    if (!newRevAuthor.trim() || !newRevText.trim()) return;
+    const item: GoogleReview = {
+      id: `gmap-rev-${Date.now()}`,
+      authorName: newRevAuthor.trim(),
+      authorRole: "Reseña verificada · Google Maps",
+      rating: newRevRating,
+      text: newRevText.trim(),
+      publishedAt: new Date(`${newRevDate}T12:00:00.000Z`).toISOString(),
+      relativeTimeLabel: newRevRelative.trim() || "Reciente en Google Maps",
+      sourceUrl: reviewsConfig.mapsUrl,
+      verifiedGoogle: true,
+    };
+    const next = [item, ...reviewsList];
+    saveStoredGoogleReviews(next);
+    setReviewsList(loadStoredGoogleReviews());
+    setNewRevAuthor("");
+    setNewRevText("");
+  };
+
+  const handleRemoveReview = (id: string) => {
+    const next = reviewsList.filter((r) => r.id !== id);
+    saveStoredGoogleReviews(next);
+    setReviewsList(loadStoredGoogleReviews());
   };
 
   return (
@@ -481,6 +529,183 @@ export default function AdminAjustesPage() {
                   </button>
                 )}
               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 5. RESEÑAS DE GOOGLE MAPS (ORDENADAS DE MÁS ESTRELLAS A MENOS Y MÁS RECIENTES) */}
+      <div className="pt-8 border-t border-tolex space-y-6">
+        <div>
+          <p className="font-label-caps text-accent">
+            Google Places API + Reseñas Verificadas
+          </p>
+          <h2 className="font-display-title text-2xl sm:text-3xl mt-1">
+            reseñas de google maps.
+          </h2>
+          <p className="text-xs text-ash mt-1">
+            Las reseñas se ordenan automáticamente de{" "}
+            <strong className="text-bone">más estrellas a menos (5 ★ → 1 ★)</strong>{" "}
+            y de <strong className="text-bone">más reciente a más antigua</strong>.
+            Puedes conectar tu <code className="text-bone">GOOGLE_MAPS_API_KEY</code>{" "}
+            para sincronización automática o agregar reseñas verificadas de tu ficha{" "}
+            <code className="text-bone">{reviewsConfig.kgmid}</code>.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border border-tolex bg-ink-2 p-4">
+          <label className="flex flex-col gap-1">
+            <span className="font-label-caps text-[11px] text-bone">
+              Google Maps API Key (Places API New · Opcional)
+            </span>
+            <input
+              type="password"
+              value={reviewsConfig.googleMapsApiKey || ""}
+              onChange={(e) => {
+                const next = {
+                  ...reviewsConfig,
+                  googleMapsApiKey: e.target.value,
+                };
+                setReviewsConfig(next);
+                saveGoogleReviewsConfig(next);
+              }}
+              placeholder="AIzaSy..."
+              className="min-h-[42px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="font-label-caps text-[11px] text-bone">
+              Link para dejar reseña en Google Maps
+            </span>
+            <input
+              type="url"
+              value={reviewsConfig.writeReviewUrl}
+              onChange={(e) => {
+                const next = {
+                  ...reviewsConfig,
+                  writeReviewUrl: e.target.value,
+                };
+                setReviewsConfig(next);
+                saveGoogleReviewsConfig(next);
+              }}
+              placeholder="https://share.google/cNvsrMu7Aymr1UVTx"
+              className="min-h-[42px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+            />
+          </label>
+        </div>
+
+        <form
+          onSubmit={handleAddReview}
+          className="border border-tolex bg-ink-2 p-4 space-y-4"
+        >
+          <p className="font-mono-specs text-xs text-accent uppercase tracking-[0.14em]">
+            + Agregar reseña verificada de Google Maps
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+            <label className="sm:col-span-4 flex flex-col gap-1">
+              <span className="font-label-caps text-[11px] text-bone">
+                Autor (Nombre en Google Maps)
+              </span>
+              <input
+                type="text"
+                required
+                value={newRevAuthor}
+                onChange={(e) => setNewRevAuthor(e.target.value)}
+                placeholder="Ej. Mauricio L. · Baterista"
+                className="min-h-[40px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+              />
+            </label>
+
+            <label className="sm:col-span-2 flex flex-col gap-1">
+              <span className="font-label-caps text-[11px] text-bone">
+                Estrellas
+              </span>
+              <select
+                value={newRevRating}
+                onChange={(e) =>
+                  setNewRevRating(
+                    Number(e.target.value) as 1 | 2 | 3 | 4 | 5,
+                  )
+                }
+                className="min-h-[40px] px-2 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+              >
+                <option value={5}>5 ★</option>
+                <option value={4}>4 ★</option>
+                <option value={3}>3 ★</option>
+                <option value={2}>2 ★</option>
+                <option value={1}>1 ★</option>
+              </select>
+            </label>
+
+            <label className="sm:col-span-3 flex flex-col gap-1">
+              <span className="font-label-caps text-[11px] text-bone">
+                Fecha (para orden reciente)
+              </span>
+              <input
+                type="date"
+                value={newRevDate}
+                onChange={(e) => setNewRevDate(e.target.value)}
+                className="min-h-[40px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+              />
+            </label>
+
+            <label className="sm:col-span-3 flex flex-col gap-1">
+              <span className="font-label-caps text-[11px] text-bone">
+                Etiqueta de tiempo
+              </span>
+              <input
+                type="text"
+                value={newRevRelative}
+                onChange={(e) => setNewRevRelative(e.target.value)}
+                placeholder="Hace 3 días"
+                className="min-h-[40px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+              />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="font-label-caps text-[11px] text-bone block mb-1">
+              Comentario de la reseña
+            </span>
+            <textarea
+              required
+              rows={2}
+              value={newRevText}
+              onChange={(e) => setNewRevText(e.target.value)}
+              placeholder="Escribe el texto íntegro de la reseña de Google Maps..."
+              className="w-full p-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+            />
+          </label>
+
+          <div className="flex justify-end">
+            <Button type="submit" className="min-h-[40px] text-xs px-4">
+              Guardar y ordenar reseña
+            </Button>
+          </div>
+        </form>
+
+        <div className="divide-y divide-tolex border-y border-tolex">
+          {reviewsList.map((rev) => (
+            <div
+              key={rev.id}
+              className="py-3.5 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono-specs text-xs"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-accent font-bold">{rev.rating} ★</span>
+                  <strong className="text-bone">{rev.authorName}</strong>
+                  <span className="text-ash">· {rev.relativeTimeLabel}</span>
+                </div>
+                <p className="text-ash text-[11px] line-clamp-2">“{rev.text}”</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemoveReview(rev.id)}
+                className="text-ash hover:text-[#EF4444] cursor-pointer shrink-0 self-end sm:self-center"
+              >
+                Eliminar ✕
+              </button>
             </div>
           ))}
         </div>
