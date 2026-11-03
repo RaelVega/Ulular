@@ -8,13 +8,13 @@ import {
 
 describe("whatsapp helpers", () => {
   it("normalizes 10-digit Mexican numbers with prefix 52", () => {
-    expect(normalizePhoneForWhatsApp("442 406 7325")).toBe("524424067325");
-    expect(normalizePhoneForWhatsApp("+52 442 406 7325")).toBe("524424067325");
+    expect(normalizePhoneForWhatsApp("442 562 8121")).toBe("524425628121");
+    expect(normalizePhoneForWhatsApp("+52 442 562 8121")).toBe("524425628121");
   });
 
   it("builds special schedule URL pointing to studio WhatsApp", () => {
     const url = buildSpecialScheduleWhatsAppUrl("Lunes 19:00");
-    expect(url).toContain("https://wa.me/524424067325?text=");
+    expect(url).toContain("https://wa.me/524425628121?text=");
     expect(decodeURIComponent(url)).toContain("Lunes 19:00");
   });
 

@@ -42,7 +42,7 @@ export const DEFAULT_OPERATIONAL_SETTINGS: OperationalSettings = {
   pendingTtlHours: DEFAULT_PENDING_TTL_HOURS,
   cancelNoticeHours: DEFAULT_CANCEL_NOTICE_HOURS,
   whatsappNumber: WHATSAPP_NUMBER,
-  googleCalendarId: "ulular.sala@gmail.com",
+  googleCalendarId: "raelvega33@gmail.com",
   adminAccessPin: "ulular2026",
 };
 
@@ -55,16 +55,22 @@ export interface StaffMember {
 
 export const DEFAULT_STAFF_LIST: StaffMember[] = [
   {
-    id: "staff-owner-1",
-    email: "ulularsaladeensayo@gmail.com",
-    name: "Administración Ulular",
-    role: "owner",
+    id: "staff-dev-1",
+    email: "raelvega33@gmail.com",
+    name: "Rael",
+    role: "developer",
   },
   {
-    id: "staff-member-1",
+    id: "staff-superadmin-1",
+    email: "ulularsaladeensayo@gmail.com",
+    name: "Administración Ulular",
+    role: "superadmin",
+  },
+  {
+    id: "staff-admin-1",
     email: "staff.ulular@gmail.com",
     name: "Staff Cabina",
-    role: "staff",
+    role: "admin",
   },
 ];
 
@@ -415,7 +421,19 @@ export function loadOperationalSettings(): OperationalSettings {
     const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) return DEFAULT_OPERATIONAL_SETTINGS;
     const parsed = JSON.parse(raw) as Partial<OperationalSettings>;
-    return { ...DEFAULT_OPERATIONAL_SETTINGS, ...parsed };
+    const settings = { ...DEFAULT_OPERATIONAL_SETTINGS, ...parsed };
+    if (settings.googleCalendarId === "ulular.sala@gmail.com") {
+      settings.googleCalendarId = "raelvega33@gmail.com";
+      saveOperationalSettings(settings);
+    }
+    if (
+      settings.whatsappNumber === "524424067325" ||
+      settings.whatsappNumber === "4424067325"
+    ) {
+      settings.whatsappNumber = "524425628121";
+      saveOperationalSettings(settings);
+    }
+    return settings;
   } catch {
     return DEFAULT_OPERATIONAL_SETTINGS;
   }
@@ -431,14 +449,78 @@ export function loadStoredStaffList(): StaffMember[] {
   if (typeof window === "undefined") return DEFAULT_STAFF_LIST;
   try {
     const raw = window.localStorage.getItem(STAFF_STORAGE_KEY);
-    if (!raw) return DEFAULT_STAFF_LIST;
-    const parsed = JSON.parse(raw) as StaffMember[];
-    return Array.isArray(parsed) && parsed.length > 0
-      ? parsed
-      : DEFAULT_STAFF_LIST;
+    let list: StaffMember[] = DEFAULT_STAFF_LIST;
+    if (raw) {
+      const parsed = JSON.parse(raw) as (
+        | StaffMember
+        | { id: string; email: string; name: string; role: string }
+      )[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Normalizar roles antiguos si existían en localStorage
+        list = parsed.map((item) => {
+          let role: StaffRole = "admin";
+          if (item.role === "developer") role = "developer";
+          else if (item.role === "superadmin" || item.role === "owner")
+            role = "superadmin";
+          else role = "admin";
+
+          return {
+            id: item.id,
+            email: item.email,
+            name: item.name,
+            role,
+          };
+        });
+      }
+    }
+
+    // Asegurar que raelvega33@gmail.com siempre exista con rol developer
+    const hasDev = list.some(
+      (s) => s.email.toLowerCase() === "raelvega33@gmail.com",
+    );
+    if (!hasDev) {
+      list = [
+        {
+          id: "staff-dev-1",
+          email: "raelvega33@gmail.com",
+          name: "Rael",
+          role: "developer",
+        },
+        ...list,
+      ];
+      saveStoredStaffList(list);
+    } else {
+      const updated = list.map((s) =>
+        s.email.toLowerCase() === "raelvega33@gmail.com"
+          ? { ...s, role: "developer" as StaffRole, name: s.name || "Rael" }
+          : s,
+      );
+      if (JSON.stringify(updated) !== JSON.stringify(list)) {
+        list = updated;
+        saveStoredStaffList(list);
+      }
+    }
+
+    return list;
   } catch {
     return DEFAULT_STAFF_LIST;
   }
+}
+
+export function canManageStaff(role?: StaffRole): boolean {
+  return role === "developer" || role === "superadmin";
+}
+
+export function canEditSettings(role?: StaffRole): boolean {
+  return role === "developer" || role === "superadmin";
+}
+
+export function canViewPin(role?: StaffRole): boolean {
+  return role === "developer" || role === "superadmin";
+}
+
+export function canManageReviews(role?: StaffRole): boolean {
+  return role === "developer" || role === "superadmin";
 }
 
 export function saveStoredStaffList(list: StaffMember[]): void {
@@ -474,6 +556,36 @@ export function loadAdminSession(): AdminSession | null {
   } catch {
     return null;
   }
+}
+
+export function authenticateAdminByEmail(
+  emailInput: string,
+): { ok: true; session: AdminSession } | { ok: false; error: string } {
+  const email = emailInput.trim().toLowerCase();
+  const staff = loadStoredStaffList();
+  const matched = staff.find((s) => s.email.toLowerCase() === email);
+  if (!matched) {
+    return {
+      ok: false,
+      error: `La cuenta ${email} no está registrada en la lista de personal autorizado.`,
+    };
+  }
+
+  const session: AdminSession = {
+    email: matched.email,
+    name: matched.name,
+    role: matched.role,
+    loggedInAt: new Date().toISOString(),
+  };
+
+  if (typeof window !== "undefined") {
+    window.sessionStorage.setItem(
+      ADMIN_SESSION_STORAGE_KEY,
+      JSON.stringify(session),
+    );
+    window.dispatchEvent(new Event("ulular-auth-updated"));
+  }
+  return { ok: true, session };
 }
 
 export function authenticateAdmin(

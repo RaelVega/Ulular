@@ -11,6 +11,9 @@ export async function GET() {
     serviceAccountEmail:
       creds?.clientEmail ??
       "Pendiente en .env.local (GOOGLE_SERVICE_ACCOUNT_EMAIL)",
-    calendarId: creds?.calendarId ?? "ulular.sala@gmail.com",
+    calendarId:
+      creds?.calendarId ??
+      process.env.GOOGLE_CALENDAR_ID ??
+      "raelvega33@gmail.com",
   });
 }

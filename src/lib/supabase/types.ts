@@ -9,7 +9,7 @@ export type BookingStatus =
   | "no_show"
   | "completed";
 
-export type StaffRole = "owner" | "staff";
+export type StaffRole = "developer" | "superadmin" | "admin";
 
 export interface ProfileRow {
   id: string;

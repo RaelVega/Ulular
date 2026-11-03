@@ -6,11 +6,17 @@ import { BrandIcon, type BrandNetwork } from "@/components/ui/BrandIcon";
 import { Button } from "@/components/ui/Button";
 import { StudioIcon } from "@/components/ui/StudioIcon";
 import {
+  canEditSettings,
+  canManageReviews,
+  canManageStaff,
+  canViewPin,
   DEFAULT_OPERATIONAL_SETTINGS,
+  loadAdminSession,
   loadOperationalSettings,
   loadStoredStaffList,
   saveOperationalSettings,
   saveStoredStaffList,
+  type AdminSession,
   type OperationalSettings,
   type StaffMember,
 } from "@/lib/bookings-store";
@@ -31,6 +37,7 @@ import {
 import type { StaffRole } from "@/lib/supabase/types";
 
 export default function AdminAjustesPage() {
+  const [session, setSession] = useState<AdminSession | null>(null);
   const [links, setLinks] = useState<SocialLinksConfig>(SOCIAL_LINKS);
   const [opSettings, setOpSettings] = useState<OperationalSettings>(
     DEFAULT_OPERATIONAL_SETTINGS,
@@ -38,7 +45,7 @@ export default function AdminAjustesPage() {
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [newStaffEmail, setNewStaffEmail] = useState("");
   const [newStaffName, setNewStaffName] = useState("");
-  const [newStaffRole, setNewStaffRole] = useState<StaffRole>("staff");
+  const [newStaffRole, setNewStaffRole] = useState<StaffRole>("admin");
   const [reviewsConfig, setReviewsConfig] = useState<GoogleReviewsConfig>(
     DEFAULT_GOOGLE_REVIEWS_CONFIG,
   );
@@ -57,6 +64,7 @@ export default function AdminAjustesPage() {
   } | null>(null);
 
   useEffect(() => {
+    setSession(loadAdminSession());
     setLinks(loadStoredSocialLinks());
     setOpSettings(loadOperationalSettings());
     setStaffList(loadStoredStaffList());
@@ -68,8 +76,16 @@ export default function AdminAjustesPage() {
       .catch(() => {});
   }, []);
 
+  const role = session?.role;
+  const isReadOnly = role === "admin";
+  const userCanEdit = canEditSettings(role);
+  const userCanManageStaff = canManageStaff(role);
+  const userCanViewPin = canViewPin(role);
+  const userCanManageReviews = canManageReviews(role);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (!userCanEdit) return;
     saveStoredSocialLinks(links);
     saveOperationalSettings(opSettings);
     saveGoogleReviewsConfig(reviewsConfig);
@@ -79,6 +95,7 @@ export default function AdminAjustesPage() {
 
   const handleAddStaff = (e: FormEvent) => {
     e.preventDefault();
+    if (!userCanManageStaff) return;
     const email = newStaffEmail.trim().toLowerCase();
     if (!email || !email.includes("@")) return;
     if (staffList.some((s) => s.email.toLowerCase() === email)) return;
@@ -99,6 +116,12 @@ export default function AdminAjustesPage() {
   };
 
   const handleRemoveStaff = (id: string) => {
+    if (!userCanManageStaff) return;
+    const target = staffList.find((s) => s.id === id);
+    if (!target) return;
+    // Solo un developer puede revocar a un developer
+    if (target.role === "developer" && role !== "developer") return;
+
     const next = staffList.filter((s) => s.id !== id);
     setStaffList(next);
     saveStoredStaffList(next);
@@ -106,6 +129,7 @@ export default function AdminAjustesPage() {
 
   const handleAddReview = (e: FormEvent) => {
     e.preventDefault();
+    if (!userCanManageReviews) return;
     if (!newRevAuthor.trim() || !newRevText.trim()) return;
     const item: GoogleReview = {
       id: `gmap-rev-${Date.now()}`,
@@ -126,6 +150,7 @@ export default function AdminAjustesPage() {
   };
 
   const handleRemoveReview = (id: string) => {
+    if (!userCanManageReviews) return;
     const next = reviewsList.filter((r) => r.id !== id);
     saveStoredGoogleReviews(next);
     setReviewsList(loadStoredGoogleReviews());
@@ -135,8 +160,14 @@ export default function AdminAjustesPage() {
     <div className="max-w-4xl space-y-12">
       <div className="pb-6 border-b border-tolex flex items-center justify-between gap-4">
         <div>
-          <p className="font-label-caps text-accent">
-            Configuración · Solo Owner
+          <p className="font-label-caps text-accent flex items-center gap-2">
+            <span>
+              {role === "developer"
+                ? "Configuración Global · Modo Desarrollador"
+                : role === "superadmin"
+                  ? "Configuración General · Modo Superadmin"
+                  : "Configuración · Modo Administrador (Solo lectura)"}
+            </span>
           </p>
           <h1 className="font-display-title text-3xl sm:text-5xl mt-1">
             ajustes, tarifas y usuarios.
@@ -152,6 +183,22 @@ export default function AdminAjustesPage() {
         </Link>
       </div>
 
+      {/* BANNER INFORMATIVO PARA MODO SOLO LECTURA (ADMIN) */}
+      {isReadOnly && (
+        <div className="p-4 border border-accent/40 bg-ink-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+            <span className="font-mono-specs text-xs text-bone font-semibold">
+              Vista de Administrador · Modo Solo Lectura
+            </span>
+          </div>
+          <p className="font-mono-specs text-[11px] text-ash">
+            Puedes consultar las tarifas y la lista de personal, pero la edición
+            está reservada para Superadmin y Desarrollador.
+          </p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-10">
         {/* 1. PARÁMETROS OPERATIVOS DE LA SALA */}
         <div>
@@ -165,6 +212,7 @@ export default function AdminAjustesPage() {
               </span>
               <input
                 type="number"
+                disabled={!userCanEdit}
                 min={50}
                 step={10}
                 value={opSettings.pricePerHour}
@@ -174,7 +222,7 @@ export default function AdminAjustesPage() {
                     pricePerHour: Number(e.target.value) || 150,
                   })
                 }
-                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent"
+                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </label>
 
@@ -184,6 +232,7 @@ export default function AdminAjustesPage() {
               </span>
               <input
                 type="number"
+                disabled={!userCanEdit}
                 min={1}
                 max={6}
                 value={opSettings.minHours}
@@ -193,7 +242,7 @@ export default function AdminAjustesPage() {
                     minHours: Number(e.target.value) || 1,
                   })
                 }
-                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent"
+                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </label>
 
@@ -203,6 +252,7 @@ export default function AdminAjustesPage() {
               </span>
               <input
                 type="number"
+                disabled={!userCanEdit}
                 min={1}
                 max={72}
                 value={opSettings.cancelNoticeHours}
@@ -212,7 +262,7 @@ export default function AdminAjustesPage() {
                     cancelNoticeHours: Number(e.target.value) || 24,
                   })
                 }
-                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent"
+                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </label>
 
@@ -222,6 +272,7 @@ export default function AdminAjustesPage() {
               </span>
               <input
                 type="number"
+                disabled={!userCanEdit}
                 min={1}
                 max={72}
                 value={opSettings.pendingTtlHours}
@@ -231,7 +282,7 @@ export default function AdminAjustesPage() {
                     pendingTtlHours: Number(e.target.value) || 24,
                   })
                 }
-                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent"
+                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </label>
 
@@ -241,6 +292,7 @@ export default function AdminAjustesPage() {
               </span>
               <input
                 type="text"
+                disabled={!userCanEdit}
                 value={opSettings.whatsappNumber}
                 onChange={(e) =>
                   setOpSettings({
@@ -248,7 +300,7 @@ export default function AdminAjustesPage() {
                     whatsappNumber: e.target.value,
                   })
                 }
-                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent"
+                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </label>
 
@@ -258,6 +310,7 @@ export default function AdminAjustesPage() {
               </span>
               <input
                 type="text"
+                disabled={!userCanEdit}
                 value={opSettings.googleCalendarId}
                 onChange={(e) =>
                   setOpSettings({
@@ -265,8 +318,8 @@ export default function AdminAjustesPage() {
                     googleCalendarId: e.target.value,
                   })
                 }
-                placeholder="ulular.sala@gmail.com"
-                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent"
+                placeholder="raelvega33@gmail.com"
+                className="min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </label>
 
@@ -274,18 +327,28 @@ export default function AdminAjustesPage() {
               <span className="font-label-caps text-xs text-accent">
                 Clave / PIN de acceso a Cabina Admin
               </span>
-              <input
-                type="text"
-                value={opSettings.adminAccessPin}
-                onChange={(e) =>
-                  setOpSettings({
-                    ...opSettings,
-                    adminAccessPin: e.target.value,
-                  })
-                }
-                placeholder="ulular2026"
-                className="min-h-[44px] px-3 bg-ink-2 border border-accent/60 text-bone font-mono-specs text-sm focus:border-accent"
-              />
+              {userCanViewPin ? (
+                <input
+                  type="text"
+                  value={opSettings.adminAccessPin}
+                  onChange={(e) =>
+                    setOpSettings({
+                      ...opSettings,
+                      adminAccessPin: e.target.value,
+                    })
+                  }
+                  placeholder="ulular2026"
+                  className="min-h-[44px] px-3 bg-ink-2 border border-accent/60 text-bone font-mono-specs text-sm focus:border-accent"
+                />
+              ) : (
+                <input
+                  type="password"
+                  disabled
+                  value="••••••••••"
+                  className="min-h-[44px] px-3 bg-ink border border-tolex text-ash font-mono-specs text-sm opacity-60 cursor-not-allowed"
+                  title="Oculto por seguridad: solo Superadmin y Desarrollador"
+                />
+              )}
             </label>
           </div>
         </div>
@@ -300,6 +363,7 @@ export default function AdminAjustesPage() {
               network="instagram"
               label="Instagram"
               value={links.instagram}
+              disabled={!userCanEdit}
               onChange={(v) => setLinks({ ...links, instagram: v })}
               placeholder="https://www.instagram.com/ulularsala/"
             />
@@ -307,6 +371,7 @@ export default function AdminAjustesPage() {
               network="facebook"
               label="Facebook"
               value={links.facebook}
+              disabled={!userCanEdit}
               onChange={(v) => setLinks({ ...links, facebook: v })}
               placeholder="https://www.facebook.com/ulularsaladeensayo/"
             />
@@ -314,6 +379,7 @@ export default function AdminAjustesPage() {
               network="youtube"
               label="YouTube (Live Sessions)"
               value={links.youtube}
+              disabled={!userCanEdit}
               onChange={(v) => setLinks({ ...links, youtube: v })}
               placeholder="https://www.youtube.com/@ulularsala"
             />
@@ -321,6 +387,7 @@ export default function AdminAjustesPage() {
               network="tiktok"
               label="TikTok"
               value={links.tiktok}
+              disabled={!userCanEdit}
               onChange={(v) => setLinks({ ...links, tiktok: v })}
               placeholder="https://www.tiktok.com/@ulularsala"
             />
@@ -328,209 +395,192 @@ export default function AdminAjustesPage() {
               network="maps"
               label="Google Maps"
               value={links.maps}
+              disabled={!userCanEdit}
               onChange={(v) => setLinks({ ...links, maps: v })}
               placeholder="https://share.google/cNvsrMu7Aymr1UVTx"
             />
           </div>
         </div>
 
-        {/* 3. REDES ULULAR NAPULE PIZZA */}
-        <div>
-          <p className="font-label-caps text-ash pb-3 border-b border-tolex">
-            Ulular Napule Pizza (apartado independiente)
-          </p>
-          <div className="divide-y divide-tolex border-b border-tolex">
-            <SocialFieldRow
-              network="instagram"
-              label="Instagram Pizzería"
-              value={links.pizzaInstagram}
-              onChange={(v) => setLinks({ ...links, pizzaInstagram: v })}
-              placeholder="https://www.instagram.com/ulularnapulepizza"
-            />
-            <SocialFieldRow
-              network="facebook"
-              label="Facebook Pizzería"
-              value={links.pizzaFacebook}
-              onChange={(v) => setLinks({ ...links, pizzaFacebook: v })}
-              placeholder="https://www.facebook.com/share/19iX74tHFa/"
-            />
+        {/* BOTÓN GUARDAR (SOLO PARA DEVELOPER / SUPERADMIN) */}
+        {userCanEdit && (
+          <div className="flex items-center justify-between gap-4 pt-4">
+            <Button type="submit" className="px-6">
+              Guardar Parámetros y Redes
+            </Button>
+            {saved && (
+              <span className="font-mono-specs text-xs text-[#10B981] animate-fade">
+                ✓ Ajustes guardados correctamente
+              </span>
+            )}
           </div>
-        </div>
-
-        {saved && (
-          <p className="font-mono-specs text-xs border-l-2 border-accent pl-3 py-1 text-bone">
-            ✓ Ajustes operativos y enlaces actualizados en todo el sitio.
-          </p>
         )}
-
-        <div className="flex flex-wrap gap-4">
-          <Button type="submit">Guardar configuración</Button>
-          <Button
-            type="button"
-            variant="ghost"
-            withLed={false}
-            onClick={() => {
-              setLinks(SOCIAL_LINKS);
-              setOpSettings(DEFAULT_OPERATIONAL_SETTINGS);
-              saveStoredSocialLinks(SOCIAL_LINKS);
-              saveOperationalSettings(DEFAULT_OPERATIONAL_SETTINGS);
-              setSaved(true);
-            }}
-          >
-            Restaurar valores por defecto
-          </Button>
-        </div>
       </form>
 
-      {/* 4. ESTADO DE CONEXIÓN CON GOOGLE CALENDAR (SERVICE ACCOUNT) */}
-      <div className="pt-6 border-t border-tolex space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <p className="font-label-caps text-accent">
-              Sincronización Bidireccional · Google Calendar API
-            </p>
-            <h2 className="font-display-title text-2xl sm:text-3xl text-bone mt-1">
-              conexión vía service account
-            </h2>
-          </div>
-
-          <span
-            className={`font-mono-specs text-xs border px-3 py-1.5 uppercase self-start sm:self-auto ${
-              gcalStatus?.configured
-                ? "border-[#10B981] bg-[#10B981]/15 text-[#10B981] font-semibold"
-                : "border-accent bg-accent-soft text-accent"
-            }`}
-          >
-            {gcalStatus?.configured
-              ? "● Conectado en vivo"
-              : "● Modo simulación local activo"}
-          </span>
-        </div>
-
-        <div className="border border-tolex bg-ink-2 p-5 space-y-3 font-mono-specs text-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-tolex">
-            <span className="text-ash">SERVICE ACCOUNT EMAIL:</span>
-            <span className="text-bone">
-              {gcalStatus?.serviceAccountEmail ?? "Cargando..."}
-            </span>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-tolex">
-            <span className="text-ash">CALENDAR ID OBJETIVO:</span>
-            <span className="text-bone">{opSettings.googleCalendarId}</span>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <span className="text-ash">ENDPOINT WEBHOOK:</span>
-            <span className="text-accent">/api/calendar/webhook</span>
-          </div>
-        </div>
-
-        <p className="text-xs text-ash leading-relaxed">
-          Al crear una reserva se agenda como{" "}
-          <strong className="text-bone">[PENDIENTE] Banda · Código</strong>, al
-          confirmarla pasa a <strong className="text-bone">✅ Banda · Código</strong>{" "}
-          y al cancelarla se libera del calendario. Además, cualquier bloque
-          ocupado en el Google Calendar del estudio se descuenta automáticamente
-          vía <code className="text-bone">freeBusy</code>.
-        </p>
-      </div>
-
-      {/* 5. USUARIOS AUTORIZADOS (ALLOWLIST GOOGLE SIGN-IN) */}
-      <div className="pt-6 border-t border-tolex space-y-5">
+      {/* 3. ESTADO DE SINCRONIZACIÓN GOOGLE CALENDAR */}
+      <div className="pt-8 border-t border-tolex space-y-4">
         <div>
           <p className="font-label-caps text-accent">
-            Control de acceso · Google Sign-In Allowlist
+            Google Calendar API · Estado de Conexión
           </p>
-          <h2 className="font-display-title text-2xl sm:text-3xl text-bone mt-1">
-            correos gmail autorizados (owner y staff)
+          <h2 className="font-display-title text-2xl sm:text-3xl mt-1">
+            sincronización con google calendar.
+          </h2>
+        </div>
+
+        <div className="border border-tolex bg-ink-2 p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <span className="font-mono-specs text-[10px] text-ash block uppercase">
+              Estado API
+            </span>
+            <span
+              className={`font-mono-specs text-xs font-bold ${
+                gcalStatus?.configured ? "text-[#10B981]" : "text-accent"
+              }`}
+            >
+              {gcalStatus?.configured ? "● CONECTADO" : "○ MODO LOCAL / DEMO"}
+            </span>
+          </div>
+
+          <div>
+            <span className="font-mono-specs text-[10px] text-ash block uppercase">
+              Modo Operativo
+            </span>
+            <span className="font-mono-specs text-xs text-bone">
+              {gcalStatus?.mode === "service_account_live"
+                ? "Service Account Activa"
+                : "Mock de Desarrollo"}
+            </span>
+          </div>
+
+          <div className="sm:col-span-2">
+            <span className="font-mono-specs text-[10px] text-ash block uppercase">
+              ID Calendario Destino
+            </span>
+            <span className="font-mono-specs text-xs text-bone truncate block">
+              {gcalStatus?.calendarId || opSettings.googleCalendarId}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. EQUIPO Y ROLES DE ACCESO */}
+      <div className="pt-8 border-t border-tolex space-y-6">
+        <div>
+          <p className="font-label-caps text-accent">
+            Permisos · Developer · Superadmin · Admin
+          </p>
+          <h2 className="font-display-title text-2xl sm:text-3xl mt-1">
+            equipo y roles de acceso.
           </h2>
           <p className="text-xs text-ash mt-1">
-            Solo las cuentas de Google listadas aquí pueden acceder al panel
-            operativo en producción.
+            {userCanManageStaff
+              ? "Solo los correos registrados pueden acceder al panel. Los roles determinan qué acciones y ajustes pueden modificar."
+              : "Lista de personal autorizado (modo consulta)."}
           </p>
         </div>
 
-        <form
-          onSubmit={handleAddStaff}
-          className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end border border-tolex bg-ink-2 p-4"
-        >
-          <label className="sm:col-span-5 flex flex-col gap-1">
-            <span className="font-label-caps text-[11px] text-bone">
-              Correo Gmail *
-            </span>
-            <input
-              type="email"
-              required
-              value={newStaffEmail}
-              onChange={(e) => setNewStaffEmail(e.target.value)}
-              placeholder="usuario@gmail.com"
-              className="min-h-[42px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
-            />
-          </label>
+        {/* Formulario solo visible si tiene permisos de gestión */}
+        {userCanManageStaff && (
+          <form
+            onSubmit={handleAddStaff}
+            className="grid grid-cols-1 sm:grid-cols-12 gap-3 border border-tolex bg-ink-2 p-4"
+          >
+            <label className="sm:col-span-5 flex flex-col gap-1">
+              <span className="font-label-caps text-[11px] text-bone">
+                Correo Gmail
+              </span>
+              <input
+                type="email"
+                required
+                value={newStaffEmail}
+                onChange={(e) => setNewStaffEmail(e.target.value)}
+                placeholder="nuevo.staff@gmail.com"
+                className="min-h-[42px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+              />
+            </label>
 
-          <label className="sm:col-span-3 flex flex-col gap-1">
-            <span className="font-label-caps text-[11px] text-bone">
-              Nombre
-            </span>
-            <input
-              type="text"
-              value={newStaffName}
-              onChange={(e) => setNewStaffName(e.target.value)}
-              placeholder="Nombre o puesto"
-              className="min-h-[42px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
-            />
-          </label>
+            <label className="sm:col-span-3 flex flex-col gap-1">
+              <span className="font-label-caps text-[11px] text-bone">
+                Nombre
+              </span>
+              <input
+                type="text"
+                value={newStaffName}
+                onChange={(e) => setNewStaffName(e.target.value)}
+                placeholder="Nombre o puesto"
+                className="min-h-[42px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+              />
+            </label>
 
-          <label className="sm:col-span-2 flex flex-col gap-1">
-            <span className="font-label-caps text-[11px] text-bone">Rol</span>
-            <select
-              value={newStaffRole}
-              onChange={(e) => setNewStaffRole(e.target.value as StaffRole)}
-              className="min-h-[42px] px-2 bg-ink border border-tolex text-bone font-mono-specs text-xs"
-            >
-              <option value="staff">STAFF</option>
-              <option value="owner">OWNER</option>
-            </select>
-          </label>
+            <label className="sm:col-span-2 flex flex-col gap-1">
+              <span className="font-label-caps text-[11px] text-bone">Rol</span>
+              <select
+                value={newStaffRole}
+                onChange={(e) => setNewStaffRole(e.target.value as StaffRole)}
+                className="min-h-[42px] px-2 bg-ink border border-tolex text-bone font-mono-specs text-xs uppercase"
+              >
+                <option value="admin">ADMIN</option>
+                <option value="superadmin">SUPERADMIN</option>
+                {role === "developer" && (
+                  <option value="developer">DEVELOPER</option>
+                )}
+              </select>
+            </label>
 
-          <div className="sm:col-span-2">
-            <Button type="submit" className="w-full min-h-[42px] text-xs px-2">
-              Autorizar
-            </Button>
-          </div>
-        </form>
+            <div className="sm:col-span-2">
+              <Button
+                type="submit"
+                className="w-full min-h-[42px] text-xs px-2"
+              >
+                Autorizar
+              </Button>
+            </div>
+          </form>
+        )}
 
         <div className="divide-y divide-tolex border-y border-tolex">
-          {staffList.map((member) => (
-            <div
-              key={member.id}
-              className="py-3.5 px-2 flex items-center justify-between gap-4 font-mono-specs text-xs"
-            >
-              <div>
-                <strong className="text-bone">{member.email}</strong>{" "}
-                <span className="text-ash">· {member.name}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span
-                  className={`border px-2 py-0.5 text-[10px] uppercase ${
-                    member.role === "owner"
-                      ? "border-accent bg-accent-soft text-accent font-semibold"
-                      : "border-tolex bg-ink-2 text-bone"
-                  }`}
-                >
-                  {member.role}
-                </span>
-                {staffList.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveStaff(member.id)}
-                    className="text-ash hover:text-[#EF4444] cursor-pointer"
+          {staffList.map((member) => {
+            const canRevokeThis =
+              userCanManageStaff &&
+              member.email.toLowerCase() !== session?.email?.toLowerCase() &&
+              (role === "developer" || member.role !== "developer");
+
+            const badgeStyle =
+              member.role === "developer"
+                ? "border-accent text-accent bg-accent/10 font-bold"
+                : member.role === "superadmin"
+                  ? "border-bone/70 text-bone bg-ink-3 font-semibold"
+                  : "border-tolex bg-ink-2 text-ash";
+
+            return (
+              <div
+                key={member.id}
+                className="py-3.5 px-2 flex items-center justify-between gap-4 font-mono-specs text-xs"
+              >
+                <div className="min-w-0">
+                  <strong className="text-bone">{member.email}</strong>{" "}
+                  <span className="text-ash">· {member.name}</span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span
+                    className={`border px-2 py-0.5 text-[10px] uppercase tracking-wider ${badgeStyle}`}
                   >
-                    Revocar ✕
-                  </button>
-                )}
+                    {member.role}
+                  </span>
+                  {canRevokeThis && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveStaff(member.id)}
+                      className="text-ash hover:text-[#EF4444] cursor-pointer"
+                    >
+                      Revocar ✕
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -545,145 +595,149 @@ export default function AdminAjustesPage() {
           </h2>
           <p className="text-xs text-ash mt-1">
             Las reseñas se ordenan automáticamente de{" "}
-            <strong className="text-bone">más estrellas a menos (5 ★ → 1 ★)</strong>{" "}
-            y de <strong className="text-bone">más reciente a más antigua</strong>.
-            Puedes conectar tu <code className="text-bone">GOOGLE_MAPS_API_KEY</code>{" "}
-            para sincronización automática o agregar reseñas verificadas de tu ficha{" "}
-            <code className="text-bone">{reviewsConfig.kgmid}</code>.
+            <strong className="text-bone">
+              más estrellas a menos (5 ★ → 1 ★)
+            </strong>{" "}
+            y de{" "}
+            <strong className="text-bone">más reciente a más antigua</strong>.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border border-tolex bg-ink-2 p-4">
-          <label className="flex flex-col gap-1">
-            <span className="font-label-caps text-[11px] text-bone">
-              Google Maps API Key (Places API New · Opcional)
-            </span>
-            <input
-              type="password"
-              value={reviewsConfig.googleMapsApiKey || ""}
-              onChange={(e) => {
-                const next = {
-                  ...reviewsConfig,
-                  googleMapsApiKey: e.target.value,
-                };
-                setReviewsConfig(next);
-                saveGoogleReviewsConfig(next);
-              }}
-              placeholder="AIzaSy..."
-              className="min-h-[42px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
-            />
-          </label>
+        {userCanManageReviews && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border border-tolex bg-ink-2 p-4">
+              <label className="flex flex-col gap-1">
+                <span className="font-label-caps text-[11px] text-bone">
+                  Google Maps API Key (Places API New · Opcional)
+                </span>
+                <input
+                  type="password"
+                  value={reviewsConfig.googleMapsApiKey || ""}
+                  onChange={(e) => {
+                    const next = {
+                      ...reviewsConfig,
+                      googleMapsApiKey: e.target.value,
+                    };
+                    setReviewsConfig(next);
+                    saveGoogleReviewsConfig(next);
+                  }}
+                  placeholder="AIzaSy..."
+                  className="min-h-[42px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+                />
+              </label>
 
-          <label className="flex flex-col gap-1">
-            <span className="font-label-caps text-[11px] text-bone">
-              Link para dejar reseña en Google Maps
-            </span>
-            <input
-              type="url"
-              value={reviewsConfig.writeReviewUrl}
-              onChange={(e) => {
-                const next = {
-                  ...reviewsConfig,
-                  writeReviewUrl: e.target.value,
-                };
-                setReviewsConfig(next);
-                saveGoogleReviewsConfig(next);
-              }}
-              placeholder="https://share.google/cNvsrMu7Aymr1UVTx"
-              className="min-h-[42px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
-            />
-          </label>
-        </div>
+              <label className="flex flex-col gap-1">
+                <span className="font-label-caps text-[11px] text-bone">
+                  Link para dejar reseña en Google Maps
+                </span>
+                <input
+                  type="url"
+                  value={reviewsConfig.writeReviewUrl}
+                  onChange={(e) => {
+                    const next = {
+                      ...reviewsConfig,
+                      writeReviewUrl: e.target.value,
+                    };
+                    setReviewsConfig(next);
+                    saveGoogleReviewsConfig(next);
+                  }}
+                  placeholder="https://share.google/cNvsrMu7Aymr1UVTx"
+                  className="min-h-[42px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+                />
+              </label>
+            </div>
 
-        <form
-          onSubmit={handleAddReview}
-          className="border border-tolex bg-ink-2 p-4 space-y-4"
-        >
-          <p className="font-mono-specs text-xs text-accent uppercase tracking-[0.14em]">
-            + Agregar reseña verificada de Google Maps
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-            <label className="sm:col-span-4 flex flex-col gap-1">
-              <span className="font-label-caps text-[11px] text-bone">
-                Autor (Nombre en Google Maps)
-              </span>
-              <input
-                type="text"
-                required
-                value={newRevAuthor}
-                onChange={(e) => setNewRevAuthor(e.target.value)}
-                placeholder="Ej. Mauricio L. · Baterista"
-                className="min-h-[40px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
-              />
-            </label>
+            <form
+              onSubmit={handleAddReview}
+              className="border border-tolex bg-ink-2 p-4 space-y-4"
+            >
+              <p className="font-mono-specs text-xs text-accent uppercase tracking-[0.14em]">
+                + Agregar reseña verificada de Google Maps
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                <label className="sm:col-span-4 flex flex-col gap-1">
+                  <span className="font-label-caps text-[11px] text-bone">
+                    Autor (Nombre en Google Maps)
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={newRevAuthor}
+                    onChange={(e) => setNewRevAuthor(e.target.value)}
+                    placeholder="Ej. Mauricio L. · Baterista"
+                    className="min-h-[40px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+                  />
+                </label>
 
-            <label className="sm:col-span-2 flex flex-col gap-1">
-              <span className="font-label-caps text-[11px] text-bone">
-                Estrellas
-              </span>
-              <select
-                value={newRevRating}
-                onChange={(e) =>
-                  setNewRevRating(
-                    Number(e.target.value) as 1 | 2 | 3 | 4 | 5,
-                  )
-                }
-                className="min-h-[40px] px-2 bg-ink border border-tolex text-bone font-mono-specs text-xs"
-              >
-                <option value={5}>5 ★</option>
-                <option value={4}>4 ★</option>
-                <option value={3}>3 ★</option>
-                <option value={2}>2 ★</option>
-                <option value={1}>1 ★</option>
-              </select>
-            </label>
+                <label className="sm:col-span-2 flex flex-col gap-1">
+                  <span className="font-label-caps text-[11px] text-bone">
+                    Estrellas
+                  </span>
+                  <select
+                    value={newRevRating}
+                    onChange={(e) =>
+                      setNewRevRating(
+                        Number(e.target.value) as 1 | 2 | 3 | 4 | 5,
+                      )
+                    }
+                    className="min-h-[40px] px-2 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+                  >
+                    <option value={5}>5 ★</option>
+                    <option value={4}>4 ★</option>
+                    <option value={3}>3 ★</option>
+                    <option value={2}>2 ★</option>
+                    <option value={1}>1 ★</option>
+                  </select>
+                </label>
 
-            <label className="sm:col-span-3 flex flex-col gap-1">
-              <span className="font-label-caps text-[11px] text-bone">
-                Fecha (para orden reciente)
-              </span>
-              <input
-                type="date"
-                value={newRevDate}
-                onChange={(e) => setNewRevDate(e.target.value)}
-                className="min-h-[40px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
-              />
-            </label>
+                <label className="sm:col-span-3 flex flex-col gap-1">
+                  <span className="font-label-caps text-[11px] text-bone">
+                    Fecha (para orden reciente)
+                  </span>
+                  <input
+                    type="date"
+                    value={newRevDate}
+                    onChange={(e) => setNewRevDate(e.target.value)}
+                    className="min-h-[40px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+                  />
+                </label>
 
-            <label className="sm:col-span-3 flex flex-col gap-1">
-              <span className="font-label-caps text-[11px] text-bone">
-                Etiqueta de tiempo
-              </span>
-              <input
-                type="text"
-                value={newRevRelative}
-                onChange={(e) => setNewRevRelative(e.target.value)}
-                placeholder="Hace 3 días"
-                className="min-h-[40px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
-              />
-            </label>
-          </div>
+                <label className="sm:col-span-3 flex flex-col gap-1">
+                  <span className="font-label-caps text-[11px] text-bone">
+                    Etiqueta de tiempo
+                  </span>
+                  <input
+                    type="text"
+                    value={newRevRelative}
+                    onChange={(e) => setNewRevRelative(e.target.value)}
+                    placeholder="Hace 3 días"
+                    className="min-h-[40px] px-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+                  />
+                </label>
+              </div>
 
-          <label className="block">
-            <span className="font-label-caps text-[11px] text-bone block mb-1">
-              Comentario de la reseña
-            </span>
-            <textarea
-              required
-              rows={2}
-              value={newRevText}
-              onChange={(e) => setNewRevText(e.target.value)}
-              placeholder="Escribe el texto íntegro de la reseña de Google Maps..."
-              className="w-full p-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
-            />
-          </label>
+              <label className="block">
+                <span className="font-label-caps text-[11px] text-bone block mb-1">
+                  Comentario de la reseña
+                </span>
+                <textarea
+                  required
+                  rows={2}
+                  value={newRevText}
+                  onChange={(e) => setNewRevText(e.target.value)}
+                  placeholder="Escribe el texto íntegro de la reseña de Google Maps..."
+                  className="w-full p-3 bg-ink border border-tolex text-bone font-mono-specs text-xs"
+                />
+              </label>
 
-          <div className="flex justify-end">
-            <Button type="submit" className="min-h-[40px] text-xs px-4">
-              Guardar y ordenar reseña
-            </Button>
-          </div>
-        </form>
+              <div className="flex justify-end">
+                <Button type="submit" className="min-h-[40px] text-xs px-4">
+                  Guardar y ordenar reseña
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
 
         <div className="divide-y divide-tolex border-y border-tolex">
           {reviewsList.map((rev) => (
@@ -699,13 +753,15 @@ export default function AdminAjustesPage() {
                 </div>
                 <p className="text-ash text-[11px] line-clamp-2">“{rev.text}”</p>
               </div>
-              <button
-                type="button"
-                onClick={() => handleRemoveReview(rev.id)}
-                className="text-ash hover:text-[#EF4444] cursor-pointer shrink-0 self-end sm:self-center"
-              >
-                Eliminar ✕
-              </button>
+              {userCanManageReviews && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveReview(rev.id)}
+                  className="text-ash hover:text-[#EF4444] cursor-pointer shrink-0 self-end sm:self-center"
+                >
+                  Eliminar ✕
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -718,12 +774,14 @@ function SocialFieldRow({
   network,
   label,
   value,
+  disabled,
   onChange,
   placeholder,
 }: {
   network: BrandNetwork;
   label: string;
   value: string;
+  disabled?: boolean;
   onChange: (v: string) => void;
   placeholder: string;
 }) {
@@ -735,10 +793,11 @@ function SocialFieldRow({
       </span>
       <input
         type="url"
+        disabled={disabled}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="sm:col-span-8 w-full min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent"
+        className="sm:col-span-8 w-full min-h-[44px] px-3 bg-ink-2 border border-tolex text-bone font-mono-specs text-sm focus:border-accent disabled:opacity-60 disabled:cursor-not-allowed"
       />
     </label>
   );
